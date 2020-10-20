@@ -10,6 +10,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     var orientationLock = UIInterfaceOrientationMask.all
     public var userID:String?
     let notificationCenter = UNUserNotificationCenter.current()
+    var appstate = true
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
          
@@ -19,7 +20,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
          
         UNUserNotificationCenter.current().delegate = self
          
-        let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
+        let authOptions: UNAuthorizationOptions = [.alert, .sound]
          
         UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { (_, error) in
             guard error == nil else{
@@ -48,29 +49,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
            // Print full message.
            print(userInfo)
        }
-    
-    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-       print("Unable to register for remote notifications: \(error.localizedDescription)")
-    }
-    
-    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String) {
-        print("Firebase registration token: \(fcmToken)")
-         
-        let dataDict:[String: String] = ["token": fcmToken]
-        NotificationCenter.default.post(name: Notification.Name("FCMToken"), object: nil, userInfo: dataDict)
-        //scheduleNotification(title: "FCM Totken", body: "Token \(fcmToken)");
-        // TODO: If necessary send token to application server.
-        // Note: This callback is fired at each app startup and whenever a new token is generated.
-    }
-     
-    func messaging(_ messaging: Messaging, didReceive remoteMessage: MessagingRemoteMessage) {
-        print("Received data message: \(remoteMessage.appData)")
-    }
-    
+    // Receive displayed notifications for iOS 10 devices.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                  didReceive response: UNNotificationResponse,
-                                  withCompletionHandler completionHandler: @escaping () -> Void) {
-        let userInfo = response.notification.request.content.userInfo
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        let userInfo = notification.request.content.userInfo
         // Print message ID.
         if let messageID = userInfo[gcmMessageIDKey] {
           print("Message ID: \(messageID)")
@@ -93,25 +76,50 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
             
         }
-        if let data = userInfo["data"] as? NSDictionary
+        if let type = userInfo["type"] as? NSString
         {
-            let type = data["type"]as? NSString
             if type == "displayed"
             {
-                scheduleNotification(title: title, body: body);
-                
+                completionHandler([[.alert, .sound]])
+                //scheduleNotification(title: title, body: body)
+            }
+            else if appstate == false {
+                completionHandler([[.alert, .sound]])
             }
         }
-        completionHandler()
+        
+        // Change this to your preferred presentation option
+        //completionHandler(UNNotificationPresentationOptions.alert)
+    }
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+       print("Unable to register for remote notifications: \(error.localizedDescription)")
+    }
+    
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String) {
+        print("Firebase registration token: \(fcmToken)")
+         
+        let dataDict:[String: String] = ["token": fcmToken]
+        NotificationCenter.default.post(name: Notification.Name("FCMToken"), object: nil, userInfo: dataDict)
+        //scheduleNotification(title: "FCM Totken", body: "Token \(fcmToken)");
+        // TODO: If necessary send token to application server.
+        // Note: This callback is fired at each app startup and whenever a new token is generated.
+    }
+     
+    func messaging(_ messaging: Messaging, didReceive remoteMessage: MessagingRemoteMessage) {
+        print("Received data message: \(remoteMessage.appData)")
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
         print("opened again")
     }
     func applicationDidBecomeActive(_ application: UIApplication) {
-        print("opened again")
+        print("app in foreground")
+        appstate = true
     }
-
+    func applicationDidEnterBackground(_ application: UIApplication) {
+        print("app in background")
+        appstate = false
+    }
     func scheduleNotification(title: String, body: String) {
         
         let content = UNMutableNotificationContent() // notification content
@@ -120,7 +128,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         content.title = title
         content.body = body
         content.sound = UNNotificationSound.default
-        content.badge = 1
+        content.badge = 0
         content.categoryIdentifier = userActions
         
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
@@ -142,5 +150,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
 
 }
+
 
 
