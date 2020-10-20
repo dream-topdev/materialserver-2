@@ -119,6 +119,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func applicationDidEnterBackground(_ application: UIApplication) {
         print("app in background")
         appstate = false
+	if #available(iOS 10.0, *) {
+             let center = UNUserNotificationCenter.current()
+             center.removeAllDeliveredNotifications()
+             center.removeAllPendingNotificationRequests()
+          } else {
+             application.cancelAllLocalNotifications()
+          }
     }
     func scheduleNotification(title: String, body: String) {
         
